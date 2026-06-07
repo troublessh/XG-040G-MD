@@ -34,6 +34,7 @@ on:
           - LiBwrt/openwrt-6.x
           - qosmio/openwrt-ipq
           - bingoguo93/immortalwrt
+          - coolsnowwolf/lede
       BRANCH:
         default: 'main'
         required: true
