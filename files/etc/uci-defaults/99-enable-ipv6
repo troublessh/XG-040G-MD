@@ -1,0 +1,18 @@
+#!/bin/sh
+# 启用 br-lan IPv6 支持
+
+uci set network.lan.ip6assign='60'
+uci set network.lan.ipv6='auto'
+
+# 设备层启用 IPv6
+uci set network.br_lan.ipv6='1'
+
+# 启用 IPv6 RA 和 DHCPv6
+uci set dhcp.lan.dhcpv6='server'
+uci set dhcp.lan.ra='server'
+uci set dhcp.lan.ra_slaac='1'
+
+uci commit network
+uci commit dhcp
+
+exit 0
