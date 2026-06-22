@@ -43,9 +43,9 @@ https://www.right.com.cn/forum/thread-8453612-1-1.html
 
 **MAC 地址**：原版每次启动随机生成 MAC（`openssl rand`），改为以 `GITHUB_RUN_ID` 为种子生成固定 MAC。同一固件内所有 LAN 接口共享同一 MAC，WAN（lan4）为 LAN MAC +1。每次编译 MAC 不同，多台设备同网段不冲突。
 
-**CPU 温度监控**：LuCI 状态菜单新增 CPU Temperature 页面（`files/` overlay 注入），5 秒自动刷新。
+**CPU 温度监控**：ImmortalWrt 25.12 已内置 CPU 温度/频率显示，无需额外插件。
 
-**主题**：默认主题从 argon 改为 aurora（基于 Vite + Tailwind CSS，支持深色/浅色切换、移动端适配、PWA 安装）。
+**主题**：默认主题为 aurora（基于 Vite + Tailwind CSS，支持深色/浅色切换、移动端适配、PWA 安装）。同时内置 bootstrap 和 argon 主题，可在 LuCI 切换。
 
 **插件调整**
 
@@ -53,7 +53,7 @@ https://www.right.com.cn/forum/thread-8453612-1-1.html
 - openclash、homeproxy、wolplus
 
 新增：
-- smartdns、ttyd、zerotier、mwan3、sqm、nlbwmon、diskman、arpbind、syncdial、vlmcsd
+- smartdns、ttyd、zerotier、mwan3、sqm、nlbwmon、diskman、arpbind、syncdial、vlmcsd、ddns-go、wireguard、filetransfer、bootstrap 主题、argon 主题
 
 保留：
 - passwall、ddns-go、autoreboot、samba4、upnp、aurora 主题
