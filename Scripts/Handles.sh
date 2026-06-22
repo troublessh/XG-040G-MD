@@ -73,60 +73,64 @@ if [ -f "$RUST_FILE" ]; then
 	cd $PKG_PATH && echo "rust has been fixed!"
 fi
 
-#修复Airoha MAC地址：随机改为固定
+#修复Airoha MAC地址：用编译种子生成唯一固定MAC（每台设备不同，重启不变）
 MAC_FILE=$(find ./package/ -type f -name "99_fix-airoha-mac" 2>/dev/null)
 if [ -f "$MAC_FILE" ]; then
 	echo " "
 
-	cat > "$MAC_FILE" << 'MACFIX'
+	# 用 GITHUB_RUN_ID 生成唯一 MAC（每次编译不同，同固件内固定）
+	RUN_SEED="${GITHUB_RUN_ID:-$(date +%s)}"
+	SEED_HEX=$(echo -n "$RUN_SEED" | sha256sum | head -c 12)
+	# 设置 locally-administered bit（第二字节最低位=1），避免与真实 OUI 冲突
+	B1="0x${SEED_HEX:2:2}"
+	B1=$(printf '%02x' $(( 16#$B1 | 0x02 )))
+	BASE_MAC="02:${B1}:${SEED_HEX:4:2}:${SEED_HEX:6:2}:${SEED_HEX:8:2}:${SEED_HEX:10:2}"
+
+	cat > "$MAC_FILE" << MACFIX
 #!/bin/sh
 
 . /lib/functions.sh
 
-# 无 factory 分区，使用固定 MAC 地址（避免每次启动随机生成）
-BASE_MAC="02:41:85:60:B9:D6"
+# 编译时生成的固定 MAC（同固件内所有设备相同，不同固件不同）
+BASE_MAC="$BASE_MAC"
 
-# MAC 地址偏移生成（避免接口间冲突）
-mac_base=$(echo "$BASE_MAC" | tr -d ':')
-mac_dec=$((16#$mac_base))
+# LAN 接口共享同一 MAC，WAN (lan4) = BASE_MAC +1
+mac_base=\$(echo "\$BASE_MAC" | tr -d ':')
+mac_dec=\$((16#\$mac_base))
 
-printf -v mac_lan   "%012x" $((mac_dec))
-printf -v mac_eth0  "%012x" $((mac_dec + 1))
-printf -v mac_eth1  "%012x" $((mac_dec + 2))
-printf -v mac_lan4  "%012x" $((mac_dec + 3))
+printf -v mac_lan "%012x" \$((mac_dec))
+printf -v mac_wan "%012x" \$((mac_dec + 1))
 
 format_mac() {
-    echo "$1" | sed 's/\(..\)/\1:/g; s/:$//' | tr 'a-f' 'A-F'
+    echo "\$1" | sed 's/\\(..\\)/\\1:/g; s/:$//' | tr 'a-f' 'A-F'
 }
 
 config_load network
 
 found_br=0
 handle_br_lan() {
-    local section="$1"
+    local section="\$1"
     local name
-    config_get name "$section" name
-    if [ "$name" = "br-lan" ]; then
-        uci set network."$section".macaddr="$(format_mac $mac_lan)"
+    config_get name "\$section" name
+    if [ "\$name" = "br-lan" ]; then
+        uci set network."\$section".macaddr="\$(format_mac \$mac_lan)"
         found_br=1
     fi
 }
 config_foreach handle_br_lan device
 
-LAN_INTERFACES="eth0 eth1 lan2 lan3 lan4"
-for iface in $LAN_INTERFACES; do
-    if ! ip link show dev "$iface" >/dev/null 2>&1; then
+for iface in eth0 eth1 lan2 lan3 lan4; do
+    if ! ip link show dev "\$iface" >/dev/null 2>&1; then
         continue
     fi
-    section_name="${iface}_mac_fix"
-    uci set network."$section_name"=device
-    uci set network."$section_name".name="$iface"
-    case "$iface" in
-        "eth0")  uci set network."$section_name".macaddr="$(format_mac $mac_eth0)" ;;
-        "eth1")  uci set network."$section_name".macaddr="$(format_mac $mac_eth1)" ;;
-        "lan4")  uci set network."$section_name".macaddr="$(format_mac $mac_lan4)" ;;
-        *)       uci set network."$section_name".macaddr="$(format_mac $mac_lan)" ;;
-    esac
+    section_name="\${iface}_mac_fix"
+    uci set network."\$section_name"=device
+    uci set network."\$section_name".name="\$iface"
+    if [ "\$iface" = "lan4" ]; then
+        uci set network."\$section_name".macaddr="\$(format_mac \$mac_wan)"
+    else
+        uci set network."\$section_name".macaddr="\$(format_mac \$mac_lan)"
+    fi
 done
 
 uci commit network
@@ -136,5 +140,5 @@ exit 0
 MACFIX
 
 	chmod +x "$MAC_FILE"
-	cd $PKG_PATH && echo "airoha-mac fixed: using stable MAC addresses!"
+	cd $PKG_PATH && echo "airoha-mac fixed: LAN=$BASE_MAC, WAN=+1"
 fi
