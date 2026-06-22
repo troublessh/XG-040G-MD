@@ -22,6 +22,15 @@ https://www.right.com.cn/forum/thread-8453612-1-1.html
 - **登录地址**：192.168.1.10
 - **默认主题**：aurora
 
+<div align="center">
+  <img src="https://raw.githubusercontent.com/eamonxg/assets/master/aurora/preview/theme/multi-device-showcase.png" alt="Aurora Theme" width="100%">
+  <br>
+  <img src="https://raw.githubusercontent.com/eamonxg/assets/master/aurora/preview/theme/preview-demo.gif" alt="Theme Demo" width="100%">
+  <br>
+  <img src="https://raw.githubusercontent.com/eamonxg/assets/master/aurora/preview/theme/dark-light-preview.png" alt="Dark and Light" width="49%">
+  <img src="https://raw.githubusercontent.com/eamonxg/assets/master/aurora/preview/theme/mobile-preview.png" alt="Mobile" width="49%">
+</div>
+
 ## 目录简要说明
 
 | 目录 | 用途 |
@@ -35,6 +44,8 @@ https://www.right.com.cn/forum/thread-8453612-1-1.html
 **MAC 地址**：原版每次启动随机生成 MAC（`openssl rand`），改为以 `GITHUB_RUN_ID` 为种子生成固定 MAC。同一固件内所有 LAN 接口共享同一 MAC，WAN（lan4）为 LAN MAC +1。每次编译 MAC 不同，多台设备同网段不冲突。
 
 **CPU 温度监控**：LuCI 状态菜单新增 CPU Temperature 页面（`files/` overlay 注入），5 秒自动刷新。
+
+**主题**：默认主题从 argon 改为 aurora（基于 Vite + Tailwind CSS，支持深色/浅色切换、移动端适配、PWA 安装）。
 
 **插件调整**
 
