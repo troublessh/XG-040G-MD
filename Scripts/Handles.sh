@@ -74,7 +74,7 @@ if [ -f "$RUST_FILE" ]; then
 fi
 
 #修复Airoha MAC地址：用编译种子生成唯一固定MAC（每台设备不同，重启不变）
-MAC_FILE=$(find ./package/ -type f -name "99_fix-airoha-mac" 2>/dev/null)
+MAC_FILE=$(find ./ -path "*/etc/uci-defaults/99_fix-airoha-mac" 2>/dev/null)
 if [ -f "$MAC_FILE" ]; then
 	echo " "
 
