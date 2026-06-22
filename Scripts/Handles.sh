@@ -72,3 +72,73 @@ if [ -f "$RUST_FILE" ]; then
 
 	cd $PKG_PATH && echo "rust has been fixed!"
 fi
+
+#修复Airoha MAC地址：随机改为固定
+MAC_FILE=$(find ./package/ -type f -name "99_fix-airoha-mac" 2>/dev/null)
+if [ -f "$MAC_FILE" ]; then
+	echo " "
+
+	cat > "$MAC_FILE" << 'MACFIX'
+#!/bin/sh
+
+. /lib/functions.sh
+
+# 从 factory 分区读取 MAC，读不到则用固定前缀+设备序号生成
+BASE_MAC=$(dd if=/dev/mtd2 bs=1 skip=4 count=6 2>/dev/null | hexdump -e '6/1 "%02x:" "\n"' | head -c 17)
+
+if [ -z "$BASE_MAC" ] || [ "$BASE_MAC" = "00:00:00:00:00:00" ]; then
+    BASE_MAC="E0:3D:A6:00:00:01"
+fi
+
+# MAC 地址偏移生成（避免接口间冲突）
+mac_base=$(echo "$BASE_MAC" | tr -d ':')
+mac_dec=$((16#$mac_base))
+
+printf -v mac_lan   "%012x" $((mac_dec))
+printf -v mac_eth0  "%012x" $((mac_dec + 1))
+printf -v mac_eth1  "%012x" $((mac_dec + 2))
+printf -v mac_lan4  "%012x" $((mac_dec + 3))
+
+format_mac() {
+    echo "$1" | sed 's/\(..\)/\1:/g; s/:$//' | tr 'a-f' 'A-F'
+}
+
+config_load network
+
+found_br=0
+handle_br_lan() {
+    local section="$1"
+    local name
+    config_get name "$section" name
+    if [ "$name" = "br-lan" ]; then
+        uci set network."$section".macaddr="$(format_mac $mac_lan)"
+        found_br=1
+    fi
+}
+config_foreach handle_br_lan device
+
+LAN_INTERFACES="eth0 eth1 lan2 lan3 lan4"
+for iface in $LAN_INTERFACES; do
+    if ! ip link show dev "$iface" >/dev/null 2>&1; then
+        continue
+    fi
+    section_name="${iface}_mac_fix"
+    uci set network."$section_name"=device
+    uci set network."$section_name".name="$iface"
+    case "$iface" in
+        "eth0")  uci set network."$section_name".macaddr="$(format_mac $mac_eth0)" ;;
+        "eth1")  uci set network."$section_name".macaddr="$(format_mac $mac_eth1)" ;;
+        "lan4")  uci set network."$section_name".macaddr="$(format_mac $mac_lan4)" ;;
+        *)       uci set network."$section_name".macaddr="$(format_mac $mac_lan)" ;;
+    esac
+done
+
+uci commit network
+/etc/init.d/network reload
+
+exit 0
+MACFIX
+
+	chmod +x "$MAC_FILE"
+	cd $PKG_PATH && echo "airoha-mac fixed: using stable MAC addresses!"
+fi
