@@ -19,7 +19,7 @@ https://www.right.com.cn/forum/thread-8453612-1-1.html
 
 - **ImmortalWrt 版本**：25.12（6.18 分支）
 - **Linux Kernel**：6.18
-- **登录地址**：192.168.1.10
+- **登录地址**：192.168.1.100
 - **默认主题**：aurora
 
 <div align="center">
@@ -59,7 +59,7 @@ https://www.right.com.cn/forum/thread-8453612-1-1.html
 - passwall、ddns-go、autoreboot、samba4、upnp、aurora 主题
 
 **其他**
-- 默认登录地址：192.168.1.10
+- 默认登录地址：192.168.1.100
 - 默认 WiFi SSID：OpenWrt
 
 ## 源码引用
