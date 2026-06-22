@@ -20,7 +20,7 @@ https://www.right.com.cn/forum/thread-8453612-1-1.html
 - **ImmortalWrt 版本**：25.12（6.18 分支）
 - **Linux Kernel**：6.18
 - **登录地址**：192.168.1.10
-- **默认主题**：argon
+- **默认主题**：aurora
 
 ## 目录简要说明
 
@@ -32,7 +32,9 @@ https://www.right.com.cn/forum/thread-8453612-1-1.html
 
 ## 与上游分支的改动
 
-**MAC 地址**：原版每次启动随机生成 MAC，改为从 factory 分区读取或使用固定地址，保证重启后 MAC 不变。
+**MAC 地址**：原版每次启动随机生成 MAC（`openssl rand`），改为以 `GITHUB_RUN_ID` 为种子生成固定 MAC。同一固件内所有 LAN 接口共享同一 MAC，WAN（lan4）为 LAN MAC +1。每次编译 MAC 不同，多台设备同网段不冲突。
+
+**CPU 温度监控**：LuCI 状态菜单新增 CPU Temperature 页面（`files/` overlay 注入），5 秒自动刷新。
 
 **插件调整**
 
@@ -43,7 +45,7 @@ https://www.right.com.cn/forum/thread-8453612-1-1.html
 - smartdns、ttyd、zerotier、mwan3、sqm、nlbwmon、diskman、arpbind、syncdial、vlmcsd
 
 保留：
-- passwall、ddns-go、autoreboot、samba4、upnp、argon 主题
+- passwall、ddns-go、autoreboot、samba4、upnp、aurora 主题
 
 **其他**
 - 默认登录地址：192.168.1.10
@@ -55,7 +57,7 @@ https://www.right.com.cn/forum/thread-8453612-1-1.html
 |------|------|
 | ImmortalWrt 源码 | [bingoguo93/immortalwrt](https://github.com/bingoguo93/immortalwrt) (6.18 分支) |
 | CI 模板 | [VIKINGYFY/OpenWRT-CI](https://github.com/VIKINGYFY/OpenWRT-CI) |
-| argon 主题 | [sbwml/luci-theme-argon](https://github.com/sbwml/luci-theme-argon) |
+| aurora 主题 | [eamonxg/luci-theme-aurora](https://github.com/eamonxg/luci-theme-aurora) |
 | ddns-go | [sirpdboy/luci-app-ddns-go](https://github.com/sirpdboy/luci-app-ddns-go) |
 
 ## 致谢
