@@ -30,6 +30,25 @@ https://www.right.com.cn/forum/thread-8453612-1-1.html
 | Scripts | 自定义脚本（包拉取、后处理、设置） |
 | Config | 设备及通用 .config 配置 |
 
+## 与上游分支的改动
+
+**MAC 地址**：原版每次启动随机生成 MAC，改为从 factory 分区读取或使用固定地址，保证重启后 MAC 不变。
+
+**插件调整**
+
+移除：
+- openclash、homeproxy、wolplus
+
+新增：
+- smartdns、ttyd、zerotier、mwan3、sqm、nlbwmon、diskman、arpbind、syncdial、vlmcsd
+
+保留：
+- passwall、ddns-go、autoreboot、samba4、upnp、argon 主题
+
+**其他**
+- 默认登录地址：192.168.1.10
+- 默认 WiFi SSID：OpenWrt
+
 ## 源码引用
 
 | 项目 | 来源 |

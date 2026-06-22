@@ -83,12 +83,8 @@ if [ -f "$MAC_FILE" ]; then
 
 . /lib/functions.sh
 
-# 从 factory 分区读取 MAC，读不到则用固定前缀+设备序号生成
-BASE_MAC=$(dd if=/dev/mtd2 bs=1 skip=4 count=6 2>/dev/null | hexdump -e '6/1 "%02x:" "\n"' | head -c 17)
-
-if [ -z "$BASE_MAC" ] || [ "$BASE_MAC" = "00:00:00:00:00:00" ]; then
-    BASE_MAC="E0:3D:A6:00:00:01"
-fi
+# 无 factory 分区，使用固定 MAC 地址（避免每次启动随机生成）
+BASE_MAC="02:41:85:60:B9:D6"
 
 # MAC 地址偏移生成（避免接口间冲突）
 mac_base=$(echo "$BASE_MAC" | tr -d ':')
