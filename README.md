@@ -53,7 +53,7 @@ https://www.right.com.cn/forum/thread-8453612-1-1.html
 - openclash、homeproxy、wolplus
 
 新增：
-- smartdns、ttyd、zerotier、mwan3、sqm、nlbwmon、diskman、arpbind、syncdial、vlmcsd、ddns-go、wireguard、filetransfer、bootstrap 主题、argon 主题
+- smartdns、ttyd、zerotier、sqm、nlbwmon、diskman、arpbind、vlmcsd、ddns-go、wireguard、filetransfer、bootstrap 主题、argon 主题
 
 保留：
 - passwall、ddns-go、autoreboot、samba4、upnp、aurora 主题
