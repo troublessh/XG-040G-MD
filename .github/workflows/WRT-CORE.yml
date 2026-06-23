@@ -226,24 +226,61 @@ jobs:
             make clean -j$(nproc)
           fi
 
+      - name: Generate Changelog
+        if: env.WRT_TEST != 'true'
+        run: |
+          cd $GITHUB_WORKSPACE
+
+          # 最近一次 Release tag
+          LAST_TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || echo "")
+
+          # Git 提交记录
+          if [ -n "$LAST_TAG" ]; then
+            GIT_LOG=$(git log "$LAST_TAG"..HEAD --pretty=format:"- %s" --no-merges 2>/dev/null || git log --pretty=format:"- %s" --no-merges -10)
+          else
+            GIT_LOG=$(git log --pretty=format:"- %s" --no-merges -10)
+          fi
+
+          # 读取 README 中"与上游分支的改动"段落
+          CHANGE_SECTION=$(sed -n '/## 与上游分支的改动/,/^## /p' README.md | head -n -1)
+
+          # 生成 Release Body
+          cat > /tmp/release_body.md << 'BODYEOF'
+          # XG-040G-MD OpenWrt Firmware
+
+          **源码**：${{env.WRT_REPO}}
+          **分支**：${{env.WRT_BRANCH}}
+          **提交**：${{env.WRT_HASH}}
+
+          **配置**：${{env.WRT_CONFIG}}
+          **平台**：${{env.WRT_TARGET}}
+          **内核**：${{env.WRT_KVER}}
+
+          **登录地址**：${{env.WRT_IP}}
+          **登录密码**：首次登录设置
+          BODYEOF
+
+          # 追加插件列表
+          echo "" >> /tmp/release_body.md
+          echo "## 插件列表" >> /tmp/release_body.md
+          echo "${{env.WRT_LIST}}" | tr '%' '\n' >> /tmp/release_body.md
+
+          # 追加本次改动
+          if [ -n "$GIT_LOG" ]; then
+            echo "" >> /tmp/release_body.md
+            echo "## 本次改动" >> /tmp/release_body.md
+            echo "$GIT_LOG" >> /tmp/release_body.md
+          fi
+
+          # 追加固件优化说明
+          if [ -n "$CHANGE_SECTION" ]; then
+            echo "" >> /tmp/release_body.md
+            echo "$CHANGE_SECTION" >> /tmp/release_body.md
+          fi
+
       - name: Release Firmware
         uses: softprops/action-gh-release@master
         with:
           tag_name: ${{env.WRT_CONFIG}}-${{env.WRT_INFO}}-${{env.WRT_BRANCH}}-${{env.WRT_DATE}}
           files: ./wrt/upload/*.*
-          body: |
-            # XG-040G-MD OpenWrt Firmware
-
-            **源码**：${{env.WRT_REPO}}
-            **分支**：${{env.WRT_BRANCH}}
-            **提交**：${{env.WRT_HASH}}
-
-            **配置**：${{env.WRT_CONFIG}}
-            **平台**：${{env.WRT_TARGET}}
-            **内核**：${{env.WRT_KVER}}
-
-            **登录地址**：${{env.WRT_IP}}
-            **登录密码**：首次登录设置
-
-            **插件列表**
-            ${{env.WRT_LIST}}
+          body_path: /tmp/release_body.md
