@@ -142,3 +142,174 @@ MACFIX
 	chmod +x "$MAC_FILE"
 	cd $PKG_PATH && echo "airoha-mac fixed: LAN=$BASE_MAC, WAN=+1"
 fi
+
+#添加IPv6 RA Guard LuCI插件
+RABLOCK_DIR="./package/base-files/files/usr/lib/lua/luci/controller"
+mkdir -p "$RABLOCK_DIR"
+cat > "$RABLOCK_DIR/rablock.lua" << 'RABLOCK_LUA'
+module("luci.controller.rablock", package.seeall)
+
+function index()
+    entry({"admin", "network", "rablock"}, call("action_rablock"), _("IPv6 RA Guard"), 90)
+end
+
+function get_all_interfaces()
+    local ifaces = {}
+    for _, name in ipairs({"eth0", "eth1"}) do
+        local state = "down"
+        local sh = io.popen("cat /sys/class/net/" .. name .. "/operstate 2>/dev/null")
+        if sh then
+            local s = sh:read("*a") or ""
+            sh:close()
+            if s:match("up") then state = "up" end
+        end
+        ifaces[#ifaces + 1] = { name = name, state = state, group = "物理接口" }
+    end
+    local handle = io.popen("ls /sys/class/net/br-lan/brif/ 2>/dev/null")
+    if handle then
+        for port in handle:read("*a"):gmatch("%S+") do
+            local state = "down"
+            local sh = io.popen("cat /sys/class/net/" .. port .. "/operstate 2>/dev/null")
+            if sh then
+                local s = sh:read("*a") or ""
+                sh:close()
+                if s:match("up") then state = "up" end
+            end
+            ifaces[#ifaces + 1] = { name = port, state = state, group = "桥接端口" }
+        end
+        handle:close()
+    end
+    return ifaces
+end
+
+function get_active_rule()
+    local handle = io.popen("nft -a list chain bridge filter forward 2>/dev/null | grep nd-router-advert")
+    if handle then
+        local result = handle:read("*a") or ""
+        handle:close()
+        local port = result:match('iifname%s+"([^"]+)"')
+        local handle_num = result:match("handle%s+(%d+)")
+        if port then return port, handle_num end
+    end
+    return nil, nil
+end
+
+function action_rablock()
+    local http = require "luci.http"
+
+    local action = http.formvalue("action")
+    local selected_port = http.formvalue("port")
+
+    if action == "enable" and selected_port and selected_port ~= "" then
+        local _, old_handle = get_active_rule()
+        if old_handle then
+            os.execute("nft delete rule bridge filter forward handle " .. old_handle)
+        end
+        os.execute("nft add table bridge filter 2>/dev/null")
+        os.execute("nft add chain bridge filter forward '{ type filter hook forward priority 0; }' 2>/dev/null")
+        os.execute("nft add rule bridge filter forward iifname \"" .. selected_port .. "\" icmpv6 type nd-router-advert drop")
+        os.execute("uci set dhcp.lan.ra=server")
+        os.execute("uci set dhcp.lan.dhcpv6=server")
+        os.execute("uci set dhcp.lan.ra_default=1")
+        os.execute("uci commit dhcp")
+        os.execute("/etc/init.d/odhcpd restart")
+    elseif action == "disable" then
+        os.execute("nft flush chain bridge filter forward 2>/dev/null")
+        os.execute("nft delete chain bridge filter forward 2>/dev/null")
+        os.execute("nft delete table bridge filter 2>/dev/null")
+    end
+
+    local active_port, _ = get_active_rule()
+    local ifaces = get_all_interfaces()
+
+    http.prepare_content("text/html")
+    http.write([[<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>IPv6 RA Guard</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 20px; max-width: 640px; margin: auto; }
+.card { background: #f9f9f9; border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin: 20px 0; }
+.status { font-size: 18px; margin: 10px 0; }
+.on { color: #22c55e; font-weight: bold; }
+.off { color: #ef4444; font-weight: bold; }
+.up { color: #22c55e; }
+.down { color: #999; }
+select { padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-size: 14px; margin: 5px 0; min-width: 200px; }
+.btn { display: inline-block; padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin: 5px; }
+.btn-on { background: #22c55e; color: white; }
+.btn-off { background: #ef4444; color: white; }
+.desc { color: #666; font-size: 13px; margin-top: 10px; }
+table { border-collapse: collapse; margin: 10px 0; }
+td, th { padding: 6px 14px; text-align: left; border-bottom: 1px solid #eee; }
+</style>
+</head>
+<body>
+<h2>IPv6 RA Guard</h2>
+<div class="card">
+<p class="status">状态：<span class="]] .. (active_port and "on'>已开启 (" .. active_port .. ")" or "off'>已关闭") .. [[</span></p>
+<p class="desc">拦截光猫 RA，让 IPv6 流量经过路由器（旁路由模式专用）。</p>
+<p class="desc">原理：在 bridge filter forward 链丢弃指定端口的 RA，同时由 odhcpd 发送路由器自己的 RA。</p>
+
+<h3>接口列表</h3>
+<table>
+<tr><th>端口</th><th>状态</th><th>RA Guard</th></tr>
+]])
+
+    local last_group = ""
+    for _, p in ipairs(ifaces) do
+        if p.group ~= last_group then
+            if last_group ~= "" then http.write('</table><h3>' .. p.group .. '</h3><table><tr><th>端口</th><th>状态</th><th>RA Guard</th></tr>') end
+            last_group = p.group
+        end
+        local state_class = p.state == "up" and "up" or "down"
+        local state_text = p.state == "up" and "在线 ↑" or "离线 ↓"
+        local is_active = active_port == p.name
+        http.write('<tr><td>' .. p.name .. '</td><td class="' .. state_class .. '">' .. state_text .. '</td><td>')
+        if is_active then http.write('<b>✓ 拦截中</b>') else http.write('-') end
+        http.write('</td></tr>\n')
+    end
+
+    http.write([[</table>
+
+<h3>操作</h3>
+<form method="post">
+<select name="port">
+<option value="">-- 选择端口 --</option>
+]])
+
+    local last_group = ""
+    for _, p in ipairs(ifaces) do
+        if p.group ~= last_group then
+            if last_group ~= "" then http.write('</optgroup>') end
+            http.write('<optgroup label="' .. p.group .. '">')
+            last_group = p.group
+        end
+        local selected = (active_port == p.name) and ' selected' or ''
+        local label = p.name .. (p.state == "up" and " (在线)" or " (离线)")
+        http.write('<option value="' .. p.name .. '"' .. selected .. '>' .. label .. '</option>\n')
+    end
+    if last_group ~= "" then http.write('</optgroup>') end
+
+    http.write([[</select>
+<br>
+]])
+
+    if active_port then
+        http.write([[<input type="hidden" name="action" value="disable">
+<button type="submit" class="btn btn-off">关闭 RA Guard</button>
+]])
+    else
+        http.write([[<input type="hidden" name="action" value="enable">
+<button type="submit" class="btn btn-on">开启 RA Guard</button>
+]])
+    end
+
+    http.write([[</form>
+</div>
+</body>
+</html>]])
+end
+RABLOCK_LUA
+echo "rablock.lua installed"
