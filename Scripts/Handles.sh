@@ -73,9 +73,8 @@ if [ -f "$MAC_FILE" ]; then
 	RUN_SEED="${GITHUB_RUN_ID:-$(date +%s)}"
 	SEED_HEX=$(echo -n "$RUN_SEED" | sha256sum | head -c 12)
 	# 设置 locally-administered bit（第二字节最低位=1），避免与真实 OUI 冲突
-	B1="0x${SEED_HEX:2:2}"
-	B1=$(printf '%02x' $(( 16#$B1 | 0x02 )))
-	BASE_MAC="02:${B1}:${SEED_HEX:4:2}:${SEED_HEX:6:2}:${SEED_HEX:8:2}:${SEED_HEX:10:2}"
+	B1=$((16#${SEED_HEX:2:2} | 0x02))
+	BASE_MAC=$(printf "02:%02x:%s:%s:%s:%s" $B1 ${SEED_HEX:4:2} ${SEED_HEX:6:2} ${SEED_HEX:8:2} ${SEED_HEX:10:2})
 
 	cat > "$MAC_FILE" << MACFIX
 #!/bin/sh
@@ -151,54 +150,10 @@ for PW_FILE in "${PW_CANDIDATES[@]}"; do
 done
 
 #NAND SPI robust-read 补丁（解决 flash 读取稳定性）
-NAND_PATCH_DIR="../target/linux/generic/pending-6.12"
-if [ -d "$NAND_PATCH_DIR" ] || [ -d "../target/linux/generic" ]; then
-	NAND_PATCH=$(find ../target/linux/ -type d -name "pending-*" | head -1)
-	if [ -n "$NAND_PATCH" ] && [ ! -f "$NAND_PATCH/600-mtd-spinand-add-skyhigh-robust-read-workaround.patch" ]; then
-		cat > "$NAND_PATCH/600-mtd-spinand-add-skyhigh-robust-read-workaround.patch" << 'NANDPATCH'
-From: xiangtailiang
-Subject: [PATCH] mtd: spinand: add skyhigh robust read workaround
-
-Add a robust read page wait function that retries status reads
-with a 400ms timeout to handle slow flash page reads on Airoha
-EN7581 platforms.
-
---- a/drivers/mtd/nand/spi/core.c
-+++ b/drivers/mtd/nand/spi/core.c
-@@ -612,6 +612,34 @@ static int spinand_lock_block(struct spinand_device *spinand, u8 lock)
- 	return spinand_write_reg_op(spinand, REG_BLOCK_LOCK, lock);
- }
- 
-+static int spinand_read_page_wait(struct spinand_device *spinand, u8 *s)
-+{
-+	unsigned long timeo = jiffies + msecs_to_jiffies(400);
-+	u8 status;
-+	int ret;
-+
-+	do {
-+		ret = spinand_read_status(spinand, &status);
-+		if (ret)
-+			return ret;
-+
-+		if (status & STATUS_BUSY)
-+			continue;
-+
-+		ret = spinand_read_status(spinand, &status);
-+		if (ret)
-+			return ret;
-+
-+		if (!(status & STATUS_BUSY))
-+			break;
-+
-+	} while (time_before(jiffies, timeo));
-+
-+	*s = status;
-+	return 0;
-+}
-+
- NANDPATCH
-		cd $PKG_PATH && echo "NAND robust-read patch applied!"
-	fi
+NAND_PATCH=$(find ../target/linux/ -type d -name "pending-*" 2>/dev/null | head -1)
+if [ -n "$NAND_PATCH" ] && [ ! -f "$NAND_PATCH/600-mtd-spinand-add-skyhigh-robust-read-workaround.patch" ]; then
+	echo "RnJvbTogeGlhbmd0YWlsaWFuZwpTdWJqZWN0OiBbUEFUQ0hdIG10ZDogc3BpbmFuZDogYWRkIHNreWhpZ2ggcm9idXN0IHJlYWQgd29ya2Fyb3VuZAoKQWRkIGEgcm9idXN0IHJlYWQgcGFnZSB3YWl0IGZ1bmN0aW9uIHRoYXQgcmV0cmllcyBzdGF0dXMgcmVhZHMKd2l0aCBhIDQwMG1zIHRpbWVvdXQgdG8gaGFuZGxlIHNsb3cgZmxhc2ggcGFnZSByZWFkcyBvbiBBaXJvaGEKRU43NTgxIHBsYXRmb3Jtcy4KCi0tLSBhL2RyaXZlcnMvbXRkL25hbmQvc3BpL2NvcmUuYworKysgYi9kcml2ZXJzL210ZC9uYW5kL3NwaS9jb3JlLmMKQEAgLTYxMiw2ICs2MTIsMzQgQEAgc3RhdGljIGludCBzcGluYW5kX2xvY2tfYmxvY2soc3RydWN0IHNwaW5hbmRfZGV2aWNlICpzcGluYW5kLCB1OCBsb2NrKQoJcmV0dXJuIHNwaW5hbmRfd3JpdGVfcmVnX29wKHNwaW5hbmQsIFJFR19CTE9DS19MT0NLLCBsb2NrKTsKIH0KCitzdGF0aWMgaW50IHNwaW5hbmRfcmVhZF9wYWdlX3dhaXQoc3RydWN0IHNwaW5hbmRfZGV2aWNlICpzcGluYW5kLCB1OCAqcykKK3sKKwl1bnNpZ25lZCBsb25nIHRpbWVvID0gamlmZmllcyArIG1zZWNzX3RvX2ppZmZpZXMoNDAwKTsKKwl1OCBzdGF0dXM7CisJaW50IHJldDsKKworCWRvIHsKKwkJcmV0ID0gc3BpbmFuZF9yZWFkX3N0YXR1cyhzcGluYW5kLCAmc3RhdHVzKTsKKwkJaWYgKHJldCkKKwkJCXJldHVybiByZXQ7CisKKwkJaWYgKHN0YXR1cyAmIFNUQVRVU19CVVNZKQorCQkJY29udGludWU7CisKKwkJcmV0ID0gc3BpbmFuZF9yZWFkX3N0YXR1cyhzcGluYW5kLCAmc3RhdHVzKTsKKwkJaWYgKHJldCkKKwkJCXJldHVybiByZXQ7CisKKwkJaWYgKCEoc3RhdHVzICYgU1RBVFVTX0JVU1kpKQorCQkJYnJlYWs7CisKKwl9IHdoaWxlICh0aW1lX2JlZm9yZShqaWZmaWVzLCB0aW1lbykpOworCisJKnMgPSBzdGF0dXM7CisJcmV0dXJuIDA7Cit9CisK" | base64 -d > "$NAND_PATCH/600-mtd-spinand-add-skyhigh-robust-read-workaround.patch"
+	cd $PKG_PATH && echo "NAND robust-read patch applied!"
 fi
 
 #添加IPv6 RA Guard LuCI插件
