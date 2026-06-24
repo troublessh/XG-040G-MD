@@ -51,14 +51,11 @@
 - 默认登录地址：192.168.1.100
 - 默认 WiFi SSID：OpenWrt
 
-<div align="center">
-  <img src="https://raw.githubusercontent.com/eamonxg/assets/master/aurora/preview/theme/multi-device-showcase.png" alt="Aurora Theme" width="100%">
-  <br>
-  <img src="https://raw.githubusercontent.com/eamonxg/assets/master/aurora/preview/theme/preview-demo.gif" alt="Theme Demo" width="100%">
-  <br>
-  <img src="https://raw.githubusercontent.com/eamonxg/assets/master/aurora/preview/theme/dark-light-preview.png" alt="Dark and Light" width="49%">
-  <img src="https://raw.githubusercontent.com/eamonxg/assets/master/aurora/preview/theme/mobile-preview.png" alt="Mobile" width="49%">
-</div>
+## 界面
+  <img src="https://image.abrace.de/file/1782282820575_屏幕截图_2026-06-24_143008.png" >
+  <img src="https://image.abrace.de/file/1782282820412_屏幕截图_2026-06-24_143145.png">
+  <img src="https://image.abrace.de/file/1782282821388_屏幕截图_2026-06-24_143200.png">
+  <img src="https://image.abrace.de/file/1782282819116_屏幕截图_2026-06-24_143224.png">
 
 ## 目录简要说明
 
