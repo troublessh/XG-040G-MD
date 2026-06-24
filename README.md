@@ -1,8 +1,6 @@
-# OpenWRT-CI
+# ImmortalWrt for XG-040-MG/TF/XG-140-MG/TF Compiled by OpenWRT-CI
 
-贝尔040G系列，全面升级6.18内核  
-详细说明  
-https://www.right.com.cn/forum/thread-8453612-1-1.html
+贝尔XG-040G系列，全面升级6.18内核，7.7.0 NPU插件。
 
 ## 支持设备
 
@@ -19,26 +17,9 @@ https://www.right.com.cn/forum/thread-8453612-1-1.html
 
 - **ImmortalWrt 版本**：25.12（6.18 分支）
 - **Linux Kernel**：6.18
-- **NPU 固件**：MT7996（`airoha-en7581-mt7996-npu-firmware`）
+- **NPU 固件**：TLB7.7.0.0_v03（`airoha-en7581-mt7996-npu-firmware`）
 - **登录地址**：192.168.1.100
 - **默认主题**：aurora
-
-<div align="center">
-  <img src="https://raw.githubusercontent.com/eamonxg/assets/master/aurora/preview/theme/multi-device-showcase.png" alt="Aurora Theme" width="100%">
-  <br>
-  <img src="https://raw.githubusercontent.com/eamonxg/assets/master/aurora/preview/theme/preview-demo.gif" alt="Theme Demo" width="100%">
-  <br>
-  <img src="https://raw.githubusercontent.com/eamonxg/assets/master/aurora/preview/theme/dark-light-preview.png" alt="Dark and Light" width="49%">
-  <img src="https://raw.githubusercontent.com/eamonxg/assets/master/aurora/preview/theme/mobile-preview.png" alt="Mobile" width="49%">
-</div>
-
-## 目录简要说明
-
-| 目录 | 用途 |
-|------|------|
-| workflows | GitHub Actions CI 配置 |
-| Scripts | 自定义脚本（包拉取、后处理、设置） |
-| Config | 设备及通用 .config 配置 |
 
 ## 与上游分支的改动
 
@@ -70,6 +51,24 @@ https://www.right.com.cn/forum/thread-8453612-1-1.html
 - 默认登录地址：192.168.1.100
 - 默认 WiFi SSID：OpenWrt
 
+<div align="center">
+  <img src="https://raw.githubusercontent.com/eamonxg/assets/master/aurora/preview/theme/multi-device-showcase.png" alt="Aurora Theme" width="100%">
+  <br>
+  <img src="https://raw.githubusercontent.com/eamonxg/assets/master/aurora/preview/theme/preview-demo.gif" alt="Theme Demo" width="100%">
+  <br>
+  <img src="https://raw.githubusercontent.com/eamonxg/assets/master/aurora/preview/theme/dark-light-preview.png" alt="Dark and Light" width="49%">
+  <img src="https://raw.githubusercontent.com/eamonxg/assets/master/aurora/preview/theme/mobile-preview.png" alt="Mobile" width="49%">
+</div>
+
+## 目录简要说明
+
+| 目录 | 用途 |
+|------|------|
+| workflows | GitHub Actions CI 配置 |
+| Scripts | 自定义脚本（包拉取、后处理、设置） |
+| Config | 设备及通用 .config 配置 |
+
+
 ## 源码引用
 
 | 项目 | 来源 |
@@ -84,5 +83,3 @@ https://www.right.com.cn/forum/thread-8453612-1-1.html
 - [bingoguo93](https://github.com/bingoguo93) — XG-040G 系列设备适配及源码维护
 - [VIKINGYFY](https://github.com/VIKINGYFY) — CI 编译框架
 - [ImmortalWrt](https://github.com/immortalwrt) — 上游源码
-
-[![Stargazers over time](https://starchart.cc/VIKINGYFY/OpenWRT-CI.svg?variant=adaptive)](https://starchart.cc/VIKINGYFY/OpenWRT-CI)
