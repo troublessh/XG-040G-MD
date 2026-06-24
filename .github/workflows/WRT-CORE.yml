@@ -112,6 +112,15 @@ jobs:
         run: |
           find ./ -maxdepth 3 -type f -iregex ".*\(txt\|sh\)$" -exec dos2unix {} \; -exec chmod +x {} \;
 
+      - name: Setup ccache
+        if: env.WRT_TEST != 'true'
+        run: |
+          sudo apt install -y ccache
+          mkdir -p ./wrt/.ccache
+          ccache -M 5G
+          ccache -o compression=true
+          ccache -s
+
       - name: Check Caches
         id: check-cache
         if: env.WRT_TEST != 'true'

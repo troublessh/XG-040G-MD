@@ -35,15 +35,6 @@ if [ -d *"luci-app-aurora-config"* ]; then
 	cd $PKG_PATH && echo "theme-aurora has been fixed!"
 fi
 
-#修改aurora菜单式样
-if [ -d *"luci-app-aurora-config"* ]; then
-	echo " " && cd ./luci-app-aurora-config/
-
-	sed -i "s/nav_submenu_type '.*'/nav_submenu_type 'boxed-dropdown'/g" $(find ./root/usr/share/aurora/ -type f -name "*.template")
-
-	cd $PKG_PATH && echo "theme-aurora has been fixed!"
-fi
-
 #修改mini-diskmanager菜单位置
 if [ -d *"luci-app-mini-diskmanager"* ]; then
 	echo " " && cd ./luci-app-mini-diskmanager/
@@ -141,6 +132,73 @@ MACFIX
 
 	chmod +x "$MAC_FILE"
 	cd $PKG_PATH && echo "airoha-mac fixed: LAN=$BASE_MAC, WAN=+1"
+fi
+
+#PassWall global.lua nil-index 兼容性修复（OpenWrt 25.12）
+PW_CANDIDATES=(
+	"./luci-app-passwall/luasrc/model/cbi/passwall/client/global.lua"
+	"./passwall/luci-app-passwall/luasrc/model/cbi/passwall/client/global.lua"
+)
+for PW_FILE in "${PW_CANDIDATES[@]}"; do
+	if [ -f "$PW_FILE" ]; then
+		echo "Applying PassWall Lua compatibility hotfix: $PW_FILE"
+		sed -i 's#local dns_shunt_val = s.fields\["dns_shunt"\]:formvalue(section)#local dns_shunt_val = (s.fields["dns_shunt"] and s.fields["dns_shunt"]:formvalue(section)) or ""#g' "$PW_FILE"
+		sed -i 's#s.fields\["dns_mode"\]:formvalue(section) == "xray" or s.fields\["smartdns_dns_mode"\]:formvalue(section) == "xray"#((s.fields["dns_mode"] and s.fields["dns_mode"]:formvalue(section)) == "xray") or ((s.fields["smartdns_dns_mode"] and s.fields["smartdns_dns_mode"]:formvalue(section)) == "xray")#g' "$PW_FILE"
+		sed -i 's#s.fields\["dns_mode"\]:formvalue(section) == "sing-box" or s.fields\["smartdns_dns_mode"\]:formvalue(section) == "sing-box"#((s.fields["dns_mode"] and s.fields["dns_mode"]:formvalue(section)) == "sing-box") or ((s.fields["smartdns_dns_mode"] and s.fields["smartdns_dns_mode"]:formvalue(section)) == "sing-box")#g' "$PW_FILE"
+		cd $PKG_PATH && echo "passwall global.lua fixed!"
+		break
+	fi
+done
+
+#NAND SPI robust-read 补丁（解决 flash 读取稳定性）
+NAND_PATCH_DIR="../target/linux/generic/pending-6.12"
+if [ -d "$NAND_PATCH_DIR" ] || [ -d "../target/linux/generic" ]; then
+	NAND_PATCH=$(find ../target/linux/ -type d -name "pending-*" | head -1)
+	if [ -n "$NAND_PATCH" ] && [ ! -f "$NAND_PATCH/600-mtd-spinand-add-skyhigh-robust-read-workaround.patch" ]; then
+		cat > "$NAND_PATCH/600-mtd-spinand-add-skyhigh-robust-read-workaround.patch" << 'NANDPATCH'
+From: xiangtailiang
+Subject: [PATCH] mtd: spinand: add skyhigh robust read workaround
+
+Add a robust read page wait function that retries status reads
+with a 400ms timeout to handle slow flash page reads on Airoha
+EN7581 platforms.
+
+--- a/drivers/mtd/nand/spi/core.c
++++ b/drivers/mtd/nand/spi/core.c
+@@ -612,6 +612,34 @@ static int spinand_lock_block(struct spinand_device *spinand, u8 lock)
+ 	return spinand_write_reg_op(spinand, REG_BLOCK_LOCK, lock);
+ }
+ 
++static int spinand_read_page_wait(struct spinand_device *spinand, u8 *s)
++{
++	unsigned long timeo = jiffies + msecs_to_jiffies(400);
++	u8 status;
++	int ret;
++
++	do {
++		ret = spinand_read_status(spinand, &status);
++		if (ret)
++			return ret;
++
++		if (status & STATUS_BUSY)
++			continue;
++
++		ret = spinand_read_status(spinand, &status);
++		if (ret)
++			return ret;
++
++		if (!(status & STATUS_BUSY))
++			break;
++
++	} while (time_before(jiffies, timeo));
++
++	*s = status;
++	return 0;
++}
++
+ NANDPATCH
+		cd $PKG_PATH && echo "NAND robust-read patch applied!"
+	fi
 fi
 
 #添加IPv6 RA Guard LuCI插件
