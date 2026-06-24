@@ -157,7 +157,7 @@ if [ -n "$NAND_PATCH" ] && [ ! -f "$NAND_PATCH/600-mtd-spinand-add-skyhigh-robus
 fi
 
 #添加IPv6 RA Guard LuCI插件
-RABLOCK_DIR="./package/base-files/files/usr/lib/lua/luci/controller"
+RABLOCK_DIR="./base-files/files/usr/lib/lua/luci/controller"
 mkdir -p "$RABLOCK_DIR"
 cat > "$RABLOCK_DIR/rablock.lua" << 'RABLOCK_LUA'
 module("luci.controller.rablock", package.seeall)
