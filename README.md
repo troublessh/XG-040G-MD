@@ -19,6 +19,7 @@ https://www.right.com.cn/forum/thread-8453612-1-1.html
 
 - **ImmortalWrt 版本**：25.12（6.18 分支）
 - **Linux Kernel**：6.18
+- **NPU 固件**：MT7996（`airoha-en7581-mt7996-npu-firmware`）
 - **登录地址**：192.168.1.100
 - **默认主题**：aurora
 
@@ -41,11 +42,18 @@ https://www.right.com.cn/forum/thread-8453612-1-1.html
 
 ## 与上游分支的改动
 
+**NPU 固件**：上游默认使用 MT7992 固件（`en7581_npu_rv32.bin`），改为 MT7996 固件（`en7581_MT7996_npu_rv32.bin` + `en7581_MT7996_npu_data.bin`）。同步修改 DTSI include（`an7581-npu-mt7996.dtsi`）和设备包（`airoha-en7581-mt7996-npu-firmware`）。
+
 **MAC 地址**：原版每次启动随机生成 MAC（`openssl rand`），改为以 `GITHUB_RUN_ID` 为种子生成固定 MAC。同一固件内所有 LAN 接口共享同一 MAC，WAN（lan4）为 LAN MAC +1。每次编译 MAC 不同，多台设备同网段不冲突。
 
 **CPU 温度监控**：ImmortalWrt 25.12 已内置 CPU 温度/频率显示，无需额外插件。
 
 **主题**：默认主题为 aurora（基于 Vite + Tailwind CSS，支持深色/浅色切换、移动端适配、PWA 安装）。同时内置 bootstrap 和 argon 主题，可在 LuCI 切换。
+
+**编译优化**：
+- **ccache**：启用 5GB 压缩缓存，加速增量编译
+- **PassWall Lua 兼容性修复**：对 `global.lua` 的 `formvalue` 调用加 nil guard，适配 OpenWrt 25.12
+- **NAND robust-read 补丁**：SPI flash 双读状态校验 + 400ms 超时重试，提升读取稳定性
 
 **插件调整**
 
@@ -53,7 +61,7 @@ https://www.right.com.cn/forum/thread-8453612-1-1.html
 - openclash、homeproxy、wolplus
 
 新增：
-- smartdns、ttyd、zerotier、sqm、nlbwmon、diskman、arpbind、vlmcsd、ddns-go、wireguard、filetransfer、bootstrap 主题、argon 主题
+- smartdns、ttyd、zerotier、sqm、nlbwmon、diskman、arpbind、vlmcsd、ddns-go、wireguard、filetransfer、tailscale、bootstrap 主题、argon 主题
 
 保留：
 - passwall、ddns-go、autoreboot、samba4、upnp、aurora 主题
@@ -66,7 +74,7 @@ https://www.right.com.cn/forum/thread-8453612-1-1.html
 
 | 项目 | 来源 |
 |------|------|
-| ImmortalWrt 源码 | [bingoguo93/immortalwrt](https://github.com/bingoguo93/immortalwrt) (6.18 分支) |
+| ImmortalWrt 源码 | [troublessh/immortalwrt](https://github.com/troublessh/immortalwrt) (6.18 分支) |
 | CI 模板 | [VIKINGYFY/OpenWRT-CI](https://github.com/VIKINGYFY/OpenWRT-CI) |
 | aurora 主题 | [eamonxg/luci-theme-aurora](https://github.com/eamonxg/luci-theme-aurora) |
 | ddns-go | [sirpdboy/luci-app-ddns-go](https://github.com/sirpdboy/luci-app-ddns-go) |
