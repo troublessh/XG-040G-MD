@@ -84,27 +84,15 @@ if [ -f "$MAC_FILE" ]; then
 # 编译时生成的固定 MAC（同固件内所有设备相同，不同固件不同）
 BASE_MAC="$BASE_MAC"
 
-# LAN 接口共享同一 MAC，WAN (lan4) = BASE_MAC +1
-mac_base=\$(echo "\$BASE_MAC" | tr -d ':')
-mac_dec=\$((16#\$mac_base))
-
-printf -v mac_lan "%012x" \$((mac_dec))
-printf -v mac_wan "%012x" \$((mac_dec + 1))
-
-format_mac() {
-    echo "\$1" | sed 's/\\(..\\)/\\1:/g; s/:$//' | tr 'a-f' 'A-F'
-}
-
+# 所有接口统一 MAC（32位MIPS不支持大hex算术）
 config_load network
 
-found_br=0
 handle_br_lan() {
     local section="\$1"
     local name
     config_get name "\$section" name
     if [ "\$name" = "br-lan" ]; then
-        uci set network."\$section".macaddr="\$(format_mac \$mac_lan)"
-        found_br=1
+        uci set network."\$section".macaddr="\$BASE_MAC"
     fi
 }
 config_foreach handle_br_lan device
@@ -116,15 +104,10 @@ for iface in eth0 eth1 lan2 lan3 lan4; do
     section_name="\${iface}_mac_fix"
     uci set network."\$section_name"=device
     uci set network."\$section_name".name="\$iface"
-    if [ "\$iface" = "lan4" ]; then
-        uci set network."\$section_name".macaddr="\$(format_mac \$mac_wan)"
-    else
-        uci set network."\$section_name".macaddr="\$(format_mac \$mac_lan)"
-    fi
+    uci set network."\$section_name".macaddr="\$BASE_MAC"
 done
 
 uci commit network
-/etc/init.d/network reload
 
 exit 0
 MACFIX
@@ -326,3 +309,37 @@ td, th { padding: 6px 14px; text-align: left; border-bottom: 1px solid #eee; }
 end
 RABLOCK_LUA
 echo "rablock.lua installed"
+
+#IPv6 源地址选择 + NDP 修复（EN7581 旁路由重启后 IPv6 不通）
+IPV6_FIX_DIR="./base-files/files/etc/hotplug.d/iface"
+mkdir -p "$IPV6_FIX_DIR"
+cat > "$IPV6_FIX_DIR/99-ipv6-ndp-fix" << 'NDPFIX'
+#!/bin/sh
+[ "$INTERFACE" = "WAN6" ] && [ "$ACTION" = "ifup" ] && {
+    sleep 3
+    # 刷新邻居表，解决重启后光猫 NDP 缓存失效
+    ip -6 neigh flush dev br-lan nud stale
+    ping6 -c 1 -W 1 fe80::1%br-lan >/dev/null 2>&1
+    # 动态检测 br-lan 上的全局 IPv6 地址，测试哪个能出站
+    # 能出站的设为最高优先级（label 99），其余降级（label 100+）
+    WORKING=""
+    for addr in $(ip -6 addr show dev br-lan scope global | grep "inet6" | grep -v "fd" | awk '{print $2}' | cut -d/ -f1); do
+        if ping6 -c 1 -W 2 -I "$addr" 2001:4860:4860::8888 >/dev/null 2>&1; then
+            WORKING="$addr"
+            break
+        fi
+    done
+    if [ -n "$WORKING" ]; then
+        # 提取 /64 前缀
+        PREFIX=$(echo "$WORKING" | sed 's/:[^:]*$/:/')
+        ip addrlabel add prefix "${PREFIX}/64" label 99
+        # 降级其他全局前缀
+        for addr in $(ip -6 addr show dev br-lan scope global | grep "inet6" | grep -v "fd" | awk '{print $2}' | cut -d/ -f1); do
+            OTHER_PREFIX=$(echo "$addr" | sed 's/:[^:]*$/:/')
+            [ "$OTHER_PREFIX" != "$PREFIX" ] && ip addrlabel add prefix "${OTHER_PREFIX}/64" label 100
+        done
+    fi
+}
+NDPFIX
+chmod +x "$IPV6_FIX_DIR/99-ipv6-ndp-fix"
+echo "ipv6-ndp-fix hotplug installed"
